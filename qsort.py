@@ -83,6 +83,7 @@ def main(argv):
             sys.stderr.write("Not all commits were found (did you use the right branch?):\n")
             for c in missing:
                 sys.stderr.write("%s.patch\n" % c)
+            sys.stderr.write("Use -f to ignore these commits and run anyway. They'll be placed at the end of the series\n")
             return 1
 
     found.reverse()
