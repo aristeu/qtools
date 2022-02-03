@@ -103,14 +103,30 @@ def get_fixes_single(cache, commit_sha, verbose):
 
     return final_list
 
+def get_commit_sha(f):
+    regex = re.compile('^commit ([a-f0-9]{40})')
+    for l in f.readlines():
+        res = regex.match(l)
+        if res:
+            return res.group(1)
+    return None
+
 def get_fixes(cache, verbose):
     output = []
 
     try:
         f = open("patches/series", "r")
-        series = [s.replace(".patch\n", "") for s in f.readlines()]
+        series = []
+        for patch in f.readlines():
+            patch = patch.replace('\n', '')
+            p = open("patches/%s" % patch, "r")
+            c = get_commit_sha(p)
+            p.close()
+            if c is not None:
+                series.append(c)
+        f.close()
     except Exception as error:
-        raise("Unable to open patch/series (%s)" % str(error))
+        raise Exception("Unable to open patch/series (%s)" % str(error))
 
     for c in series:
         fixes = get_fixes_single(cache, c, verbose)

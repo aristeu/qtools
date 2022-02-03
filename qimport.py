@@ -5,6 +5,7 @@ import configparser
 import git
 import subprocess
 import optparse
+import re
 
 CONFIG_DEFAULT = '~/.config/qtools/config'
 # We only look at patches committed within 10min of the target one
@@ -58,7 +59,8 @@ def import_patches(repo, path, commit_list):
     except FileExistsError:
         pass
     except OSError as error:
-        raise("Unable to create directory patches: %s\n" % str(error))
+        sys.stderr.write("Unable to create directory patches: %s\n" % str(error))
+        sys.exit(1)
 
     mode = "r+"
     if not os.path.exists("patches/series"):
@@ -83,6 +85,65 @@ def import_single_patch(repo, path, sha):
     commit_list = [ sha ]
     import_patches(repo, path, commit_list)
 
+def get_commit_from_file(c):
+    commit = c.replace('.patch', '')
+    # first try by filename
+    try:
+        commit = repo.commit(commit)
+    except:
+        commit = None
+        pass
+
+    if commit:
+        return commit
+
+    # then by content
+    r = re.compile("^commit ([0-9a-f]*)")
+    try:
+        f = open("patches/" + c, "r")
+    except:
+        sys.stderr.write("Unable to find patch file %s\n" % c)
+        pass
+        return
+    for l in f.readlines():
+        match = f.match(l)
+        if match:
+            commit = match.group(1)
+            try:
+                commit = repo.commit(commit)
+                return commit
+            except Exception as ex:
+                sys.stderr.write("Unable to find commit %s in repository\n" % commit)
+                pass
+                continue
+    return None
+
+def check_series(repo, branch, interval):
+    try:
+        series = open("patches/series", "r")
+    except Exception as ex:
+        sys.stderr.write("Unable to open series file: %s\n" % str(ex))
+        return 1
+
+    lines = series.readlines()
+    missing_list = []
+    for c in lines:
+        commit = get_commit_from_file(c)
+        if commit is None:
+            continue
+
+        l = list_patchset(repo, branch, interval, commit)
+        for p in l:
+            if p not in lines:
+                if p not in missing_list:
+                    missing_list.append(p)
+
+    if len(missing_list) > 0:
+        for p in missing_list:
+            sys.stdout.write("%s", p)
+
+    return 0
+
 def usage(f, name):
     f.write("%s <commit>\n" % name)
 
@@ -93,6 +154,7 @@ def main(argv):
     parser.add_option("-l", "--list-patchset", dest="do_list", default=False, help="Lists the commits in the same patchset as the specified commit", action="store_true")
     parser.add_option("-b", "--branch", dest="branch", default=DEFAULT_BRANCH, help="Use branch BRANCH in the specified repository", metavar="BRANCH")
     parser.add_option("-i", "--interval", dest="interval", default=DEFAULT_COMMIT_INTERVAL, help="Look for patchset patches within INTERVAL seconds", metavar="INTERVAL")
+    parser.add_option("-c", "--check", dest="check", default=False, help="Checks if current quilt series has missing patches from the patchset(s) in it", action="store_true")
     (options, args) = parser.parse_args()
 
     patchset = options.patchset
@@ -100,11 +162,11 @@ def main(argv):
     do_import = options.patchset
     branch = options.branch
     interval = options.interval
+    check = options.check
 
-    if len(args) < 1:
+    if len(args) < 1 and check is False:
         parser.print_usage()
         return 1
-    commit_sha = args[0]
 
     config = configparser.ConfigParser()
     try:
@@ -127,10 +189,14 @@ def main(argv):
         sys.stderr.write("Unable to open git repo at %s\n" % path)
         return 1
 
+    if check:
+        return check_series(repo, branch, interval)
+
+    commit_sha = args[0]
     try:
         commit = repo.commit(commit_sha)
     except:
-        sys.stderr.write("Unable to find commit %s in repository %s\n" % (commit, path))
+        sys.stderr.write("Unable to find commit %s in repository %s\n" % (commit_sha, path))
         sys.exit(1)
 
     if not patchset and not list_only:

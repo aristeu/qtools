@@ -1,0 +1,20 @@
+#!/bin/bash
+. libparsemail.sh
+
+UPSTREAM=~/kernel/linus-2.6/
+
+tmp=$(mktemp);
+
+commit=$(get_git_commit patches/$(quilt top));
+pushd $UPSTREAM >/dev/null;
+git log -1 -p $commit >$tmp;
+popd >/dev/null;
+umatch.py patches/$(quilt top) $tmp;
+rc=$?;
+rm -f $tmp;
+if [ $rc = 0 ]; then
+	echo "true";
+else
+	echo "false";
+fi
+exit $?;
