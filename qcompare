@@ -1,0 +1,11 @@
+#!/bin/sh
+
+files=$(quilt files);
+if [ -n "$1" ]; then
+	files="$1";
+fi
+
+for i in $files; do
+	vimdiff .pc/$(basename $(quilt top))/$i $i;
+done
+

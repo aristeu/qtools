@@ -1,0 +1,28 @@
+#!/bin/bash
+# Compares a file in current quilt tree with the commit id in patch's
+# description
+. libparsemail.sh
+
+UPSTREAM=~/kernel/linus-2.6/
+
+if [ -z "$1" ]; then
+	echo "$0 <file>" >&2;
+	exit 1;
+fi
+file=$1;
+
+commit=$(get_git_references patches/$(quilt top) | head -n 1);
+if [ -z "$commit" ]; then
+	echo "couldn't find a commit id on the patch's description" >&2;
+	exit 1;
+fi
+
+tmp=$(mktemp);
+pushd $UPSTREAM;
+git show $commit:$1 >$tmp;
+popd
+
+vimdiff $file $tmp;
+#vimdiff -R -c ":diffoff" patches/$(quilt top) $file $tmp
+
+rm -f $tmp;

@@ -1,0 +1,14 @@
+#!/bin/bash
+. libparsemail.sh
+
+UPSTREAM=~/kernel/linus-2.6/
+
+tmp=$(mktemp);
+
+for commit in $(get_git_commit patches/$(quilt top)); do
+	pushd $UPSTREAM;
+	git log -1 -p $commit >$tmp;
+	popd
+	vimdiff patches/$(quilt top) $tmp;
+done
+rm -f $tmp;
