@@ -30,6 +30,7 @@ def update_cache(repo, cache, branch, last):
                 raise(error)
 
     regex = re.compile('.*Fixes:\ ([0-9a-f]+)\ .*', re.S)
+    revert_regex = re.compile('.*This\ reverts\ commit\ ([0-9a-f]+)\..*', re.S)
     ret = None
     for c in repo.iter_commits(branch):
         if ret is None:
@@ -48,6 +49,8 @@ def update_cache(repo, cache, branch, last):
                 msg = msg.decode('iso8859-1', errors='ignore')
 
         match = re.match(regex, msg)
+        if not match:
+            match = re.match(revert_regex, msg)
         if not match:
             continue
 
