@@ -154,6 +154,7 @@ def usage(f, name):
 def main(argv):
     usage = "usage: %prog [options] <commit sha>"
     parser = optparse.OptionParser(usage=usage)
+    parser.add_option("-g", "--git", dest="git", default=None, help="Specify an alternate git repository path instead of the configuration one", metavar="GIT")
     parser.add_option("-P", "--patchset", dest="patchset", default=False, help="Import the whole patchset the specified commit belongs to", action="store_true")
     parser.add_option("-l", "--list-patchset", dest="do_list", default=False, help="Lists the commits in the same patchset as the specified commit", action="store_true")
     parser.add_option("-b", "--branch", dest="branch", default=DEFAULT_BRANCH, help="Use branch BRANCH in the specified repository", metavar="BRANCH")
@@ -161,6 +162,7 @@ def main(argv):
     parser.add_option("-c", "--check", dest="check", default=False, help="Checks if current quilt series has missing patches from the patchset(s) in it", action="store_true")
     (options, args) = parser.parse_args()
 
+    path = options.git
     patchset = options.patchset
     list_only = options.do_list
     do_import = options.patchset
@@ -172,19 +174,20 @@ def main(argv):
         parser.print_usage()
         return 1
 
-    config = configparser.ConfigParser()
-    try:
-        config.read(os.path.expanduser(CONFIG_DEFAULT))
-        if 'repository' not in config:
-            sys.stderr.write("Repository section not found in the config file\n")
+    if path is None:
+        config = configparser.ConfigParser()
+        try:
+            config.read(os.path.expanduser(CONFIG_DEFAULT))
+            if 'repository' not in config:
+                sys.stderr.write("Repository section not found in the config file\n")
+                return 1
+            if 'path' not in config['repository']:
+                sys.stderr.write("Repository section in the config file doesn't contain path=\n")
+                return 1
+            path = config['repository']['path']
+        except:
+            sys.stderr.write("Unable to read the config file, which is mandatory for now\n")
             return 1
-        if 'path' not in config['repository']:
-            sys.stderr.write("Repository section in the config file doesn't contain path=\n")
-            return 1
-        path = config['repository']['path']
-    except:
-        sys.stderr.write("Unable to read the config file, which is mandatory for now\n")
-        return 1
 
     repo = git.Repo(path)
     try:
