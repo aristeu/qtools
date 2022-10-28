@@ -9,11 +9,37 @@ import difflib
 import errno
 import re
 import warnings
+import shutil
 warnings.filterwarnings("ignore")
 
 CONFIG_DEFAULT = '~/.config/qtools/config'
 # we can add an option to specify branch and another to do it automatically (git branch -a --contains <sha>)
 DEFAULT_BRANCH = 'master'
+
+commit_cache = dict()
+repeated_names = []
+
+def cache_commits(repo, branch):
+    for c in repo.iter_commits(branch):
+        summary = c.summary.lower()
+        if summary in commit_cache:
+            repeated_names.append(summary)
+            continue
+        commit_cache[summary] = c.hexsha
+
+def find_commit_by_name(repo, branch, name):
+    found = []
+
+    if len(commit_cache) == 0:
+        cache_commits(repo, branch)
+
+    summary = name.lower()
+    if summary in commit_cache:
+        hexsha = commit_cache[summary]
+        if summary in repeated_names:
+            sys.stderr.write("Warning: filtering commits by name (%s) resulted in more than one commit. Using only %s\n" % (name, hexsha))
+        return repo.commit(hexsha)
+    return None
 
 def update_cache(repo, cache, branch, last):
     try:
@@ -30,6 +56,7 @@ def update_cache(repo, cache, branch, last):
                 raise(error)
 
     regex = re.compile('.*Fixes:\ ([0-9a-f]+)\ .*', re.S)
+    regex_complete = re.compile('.*Fixes:\ ([0-9a-f]+)\ \((.*)\).*', re.S)
     revert_regex = re.compile('.*This\ reverts\ commit\ ([0-9a-f]+)\..*', re.S)
     ret = None
     for c in repo.iter_commits(branch):
@@ -48,8 +75,13 @@ def update_cache(repo, cache, branch, last):
             if msg is None:
                 msg = msg.decode('iso8859-1', errors='ignore')
 
+        summary = None
         match = re.match(regex, msg)
-        if not match:
+        if match:
+            match_complete = re.match(regex_complete, msg)
+            if match_complete:
+                summary = match_complete.group(2).replace('"','').replace('[PATCH] ','').replace("'",'')
+        else:
             match = re.match(revert_regex, msg)
         if not match:
             continue
@@ -57,9 +89,13 @@ def update_cache(repo, cache, branch, last):
         try:
             commit = repo.commit(match.group(1))
         except:
-            sys.stderr.write("Warning: commit %s fixes %s but %s can't be found\n" % (c.hexsha, match.group(1), match.group(1)))
+            if summary:
+                commit = find_commit_by_name(repo, branch, summary)
+            if not commit:
+                sys.stderr.write("Warning: commit %s fixes %s but %s can't be found\n" % (c.hexsha, match.group(1), match.group(1)))
+                pass
+                continue
             pass
-            continue
 
         commit_sha = commit.hexsha
         filename = "%s/%s/%s" % (cache, commit_sha[0], commit_sha)
@@ -108,10 +144,19 @@ def get_fixes_single(cache, commit_sha, verbose):
 
 def get_commit_sha(f):
     regex = re.compile('^commit ([a-f0-9]{40})')
+    regex2 = re.compile('^.*cherry picked from commit ([a-f0-9]{40}).*')
+    regex3 = re.compile('^[uU]pstream.[sS]tatus:.[rR][hH][eE][lL]-[oO]nly')
     for l in f.readlines():
         res = regex.match(l)
         if res:
             return res.group(1)
+        res = regex2.match(l)
+        if res:
+            return res.group(1)
+        res = regex3.match(l)
+        if res:
+            return None
+    print("Warning: commit not found for: %s" % f.name)
     return None
 
 def get_fixes(cache, verbose):
@@ -122,6 +167,8 @@ def get_fixes(cache, verbose):
         series = []
         for patch in f.readlines():
             patch = patch.replace('\n', '')
+            if patch.startswith('#'):
+                continue
             p = open("patches/%s" % patch, "r")
             c = get_commit_sha(p)
             p.close()
@@ -153,12 +200,14 @@ def main(argv):
     usage = "usage: %prog [options]"
     parser = optparse.OptionParser(usage=usage)
     parser.add_option("-u", "--update", dest="do_update", default=False, help="Update cache using configured git repository", action="store_true")
+    parser.add_option("-p", "--purge", dest="do_purge", default=False, help="Purges cache, preparing for a new -u", action="store_true")
     parser.add_option("-s", "--single", dest="do_single", help="Only list fixes for a given COMMIT and ignores all patches already in series", metavar="COMMIT")
     parser.add_option("-v", "--verbose", dest="do_verbose", default=False, help="Show the reason why each commit is picked as fix", action="store_true")
     (options, args) = parser.parse_args()
 
     do_update = options.do_update
     do_verbose = options.do_verbose
+    do_purge = options.do_purge
 
     config = configparser.ConfigParser()
     try:
@@ -191,6 +240,13 @@ def main(argv):
     except:
         sys.stderr.write("Unable to open git repo at %s\n" % path)
         return 1
+
+    if do_purge:
+        config['fixes']['last'] = ''
+        f = open(os.path.expanduser(CONFIG_DEFAULT), "w")
+        config.write(f)
+        f.close()
+        return 0
 
     if do_update:
         # for now, all we care is Linus' master branch
