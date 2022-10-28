@@ -24,6 +24,7 @@ while [ 1 ]; do
 	if [ $applied -gt 0 ]; then
 		quilt header | sed -e "s/^/\t/";
 		quilt top;
+		quilt diff | diffstat -p 1 -l;
 	elif [ -f patches/mr ]; then
 		lab mr show $(<patches/mr);
 	else
@@ -41,8 +42,12 @@ while [ 1 ]; do
 	else
 		printf "${green}${applied}${nc}/${red}${total}${nc}\n"
 	fi
+	extra="";
+	if [ -n "$(quilt header | grep Y-Commit)" ]; then
+		extra="[Z]stream comparison ";
+	fi
 	line;
-	echo "[h]eader [q]compare [u]compare [p]ush p[o]p [f]orce apply [m]r show [U]pstream file compare [e]xit"
+	echo "[h]eader [q]compare [u]compare [p]ush p[o]p [f]orce apply [m]r show [U]pstream file compare ${extra}[e]xit"
 	read -d'' -s -n1 answer;
 	case $answer in
 	'h')
@@ -74,6 +79,11 @@ while [ 1 ]; do
 		for i in $(quilt files); do
 			ufcompare $i;
 		done
+	;;
+	'Z')
+		if [ -n "$extra" ]; then
+			zcompare;
+		fi
 	;;
 	*)
 		true;
