@@ -50,8 +50,8 @@ def list_patchset(repo, branch, interval, commit):
                 commit_list.clear()
 
     if len(commit_list) == 0:
-        sys.stderr.write("Commit %s not found in branch %s. Specify a different repo or branch\n" % (commit_sha, branch))
-        sys.stderr.write("Until an option is implemented to do this automatically, run 'git branch -a --contains %s'\n" % commit_sha)
+        sys.stderr.write("Commit %s not found in branch %s. Specify a different repo or branch\n" % (commit, branch))
+        sys.stderr.write("Until an option is implemented to do this automatically, run 'git branch -a --contains %s'\n" % commit)
         return 1
 
     commit_list.reverse()
