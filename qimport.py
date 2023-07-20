@@ -214,7 +214,7 @@ def main(argv):
         sys.exit(1)
 
     if not patchset and not list_only:
-        import_single_patch(repo, path, commit_sha)
+        import_single_patch(repo, path, commit.hexsha)
         return 0
 
     commit_list = list_patchset(repo, branch, interval, commit)
