@@ -52,7 +52,7 @@ def list_patchset(repo, branch, interval, commit):
     if len(commit_list) == 0:
         sys.stderr.write("Commit %s not found in branch %s. Specify a different repo or branch\n" % (commit, branch))
         sys.stderr.write("Until an option is implemented to do this automatically, run 'git branch -a --contains %s'\n" % commit)
-        return 1
+        return []
 
     commit_list.reverse()
     return commit_list
@@ -137,6 +137,9 @@ def check_series(repo, branch, interval):
             continue
 
         l = list_patchset(repo, branch, interval, commit)
+        if len(l) == 0:
+            return 1
+
         for p in l:
             if p not in lines:
                 if p not in missing_list:
@@ -218,6 +221,8 @@ def main(argv):
         return 0
 
     commit_list = list_patchset(repo, branch, interval, commit)
+    if len(commit_list) == 0:
+        sys.exit(1);
 
     if list_only:
         for c in commit_list:
