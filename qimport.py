@@ -87,11 +87,10 @@ def import_patches(repo, path, commit_list):
         write_single_patch(path, series, commit)
     series.close()
 
-def get_commit_from_file(c):
-    commit = c.replace('.patch', '')
+def get_commit_from_file(repo, sha):
     # first try by filename
     try:
-        commit = repo.commit(commit)
+        commit = repo.commit(sha)
     except:
         commit = None
         pass
@@ -102,20 +101,20 @@ def get_commit_from_file(c):
     # then by content
     r = re.compile("^commit ([0-9a-f]*)")
     try:
-        f = open("patches/" + c, "r")
+        f = open("patches/%s.patch" % sha, "r")
     except:
-        sys.stderr.write("Unable to find patch file %s\n" % c)
+        sys.stderr.write("Unable to find patch file %s.patch\n" % sha)
         pass
         return
     for l in f.readlines():
-        match = f.match(l)
+        match = r.match(l)
         if match:
-            commit = match.group(1)
+            found_sha = match.group(1)
             try:
-                commit = repo.commit(commit)
+                commit = repo.commit(found_sha)
                 return commit
             except Exception as ex:
-                sys.stderr.write("Unable to find commit %s in repository\n" % commit)
+                sys.stderr.write("Unable to find commit %s in repository\n" % found_sha)
                 pass
                 continue
     return None
@@ -127,25 +126,31 @@ def check_series(repo, branch, interval):
         sys.stderr.write("Unable to open series file: %s\n" % str(ex))
         return 1
 
-    lines = series.readlines()
+    lines = series.read().splitlines()
+    commit_sha_list = []
+    for l in lines:
+        if l[0] == '#':
+            continue
+        commit_sha_list.append(l.replace('.patch', ''))
+
     missing_list = []
-    for c in lines:
-        commit = get_commit_from_file(c)
+    for c in commit_sha_list:
+        commit = get_commit_from_file(repo, c)
         if commit is None:
             continue
 
-        (commit_list, commit_sha_list) = list_patchset(repo, branch, interval, commit)
-        if len(commit_sha_list) == 0:
+        (clist, sha_list) = list_patchset(repo, branch, interval, commit)
+        if len(sha_list) == 0:
             return 1
 
-        for p in commit_sha_list:
-            if p not in lines:
+        for p in sha_list:
+            if p not in commit_sha_list:
                 if p not in missing_list:
                     missing_list.append(p)
 
     if len(missing_list) > 0:
         for p in missing_list:
-            sys.stdout.write("%s", p)
+            print("%s" % p)
 
     return 0
 
