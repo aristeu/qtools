@@ -250,7 +250,9 @@ def main(argv):
 
         # list_patchset will expand the commit id automatically, no need to redo it
         commit_sha_list = output_sha_list
-        commit_list.extend(output_list)
+        for sha in output_list:
+            if sha not in commit_list:
+                commit_list.append(sha)
 
     if len(commit_list) == 0:
         sys.exit(1);
