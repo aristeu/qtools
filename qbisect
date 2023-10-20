@@ -1,0 +1,109 @@
+#!/bin/bash
+
+if [ -z "$1" ]; then
+	echo "$0 <bad|good|start|reset>"
+	exit 1;
+fi
+cmd=$1;
+
+# $1: bad
+# $2: good
+function find_middle
+{
+	local bad_n=$(quilt series | grep -n . | grep ":$1\$" | cut -f 1 -d ':');
+	local good_n=$(quilt series | grep -n . | grep ":$2\$" | cut -f 1 -d ':');
+
+	if [ -z "$bad_n" -o -z "$good_n" ]; then
+		echo "one or both patches don't exist in the series";
+		return 1;
+	fi
+
+	if [ $good_n -gt $bad_n ]; then
+		echo "bad patch comes earlier than the good patch?!? ($1, $2)";
+		return 1;
+	fi
+
+	local patch_n=$[$good_n + (($bad_n - $good_n)/2)];
+	local patch=$(quilt series | grep -n . | grep "^$patch_n:" | cut -f 2 -d ':');
+	if [ -z "$patch" ]; then
+		echo "unable to get patch [$patch_n] from the series";
+		return 1;
+	fi
+
+	echo "$patch";
+}
+
+# $1: patch
+function go_to
+{
+	if [ -z "$(quilt series | grep "^$1\$")" ]; then
+		echo "patch $patch not found in the series";
+		return 1;
+	fi
+	if [ -z "$(quilt applied | grep "^$1\$")" ]; then
+		quilt push "$1";
+	else
+		quilt pop "$1";
+	fi
+}
+
+if [ "$1" = "start" ]; then
+	echo -n >.qgood;
+	echo -n >.qbad;
+	exit 0;
+fi
+
+if [ "$1" = "reset" ]; then
+	rm -f .qgood .qbad;
+	exit 0;
+fi
+
+if [ "$1" = "good" -o "$1" = "bad" ]; then
+	if [ -z "$2" ]; then
+		if [ -z "$(quilt top 2>/dev/null)" ]; then
+			echo "sorry, good or bad must be a patch";
+			exit 1;
+		fi
+	fi
+	if [ "$1" = "good" ]; then
+		if [ -z "$2" ]; then
+			quilt top >.qgood 2>/dev/null;
+		else
+			echo "$2" >.qgood;
+		fi
+	fi
+
+	if [ "$1" = "bad" ]; then
+		if [ -z "$2" ]; then
+			quilt top >.qbad 2>/dev/null;
+		else
+			echo "$2" >.qbad;
+		fi
+	fi
+
+	if [ ! -s .qgood -o ! -s .qbad ]; then
+		exit 0;
+	fi
+	bad_n=$(quilt series | grep -n . | grep ":$(cat .qbad)\$" | cut -f 1 -d ':');
+	good_n=$(quilt series | grep -n . | grep ":$(cat .qgood)\$" | cut -f 1 -d ':');
+	if [ $(($good_n + 1)) -eq $bad_n ]; then
+		echo "Culprit:";
+		cat .qbad;
+		exit 0;
+	fi
+
+	new="$(find_middle "$(cat .qbad)" "$(cat .qgood)")";
+	if [ ! $? = 0 ]; then
+		echo -e "Error finding middle between:\n$(cat .qgood) and\n$(cat .qbad)";
+		exit 1;
+	fi
+	go_to "$new";
+	if [ ! $? = 0 ]; then
+		echo "Error getting to $new";
+		exit 1;
+	fi
+	exit 0;
+fi
+echo "$1 is not a valid operation";
+exit 1;
+
