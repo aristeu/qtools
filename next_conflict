@@ -1,0 +1,16 @@
+#!/bin/bash
+file="$(find . -name \*.rej | head -n 1)";
+if [ -z "$file" ]; then
+	echo "\o/ no more conflicts";
+	exit 0;
+fi
+
+orig="$(echo $file | sed -e "s/.rej\$//")"
+quilt add $orig
+vim -O $file $orig patches/$(quilt top);
+echo "remove $file? (Y/n)";
+read foo
+if [ "$foo" = "n" ]; then
+	exit 0;
+fi
+rm -v $file;
