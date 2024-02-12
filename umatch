@@ -1,7 +1,12 @@
 #!/bin/bash
 . libparsemail.sh
 
-UPSTREAM=~/kernel/linus-2.6/
+CONFIG=$HOME/.config/qtools/config.sh
+if [ ! -f $CONFIG ]; then
+	echo "Unable to find the configuration file. Please create one at $CONFIG with UPSTREAM=<path to Linus' tree>" >&2;
+	exit 1;
+fi
+. $CONFIG;
 
 tmp=$(mktemp);
 
