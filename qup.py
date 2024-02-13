@@ -144,14 +144,39 @@ def get_upstream(config, repo):
         name = config['repository']['upstream']
         return config['repo-%s' % name]['path']
 
-def check_backport(cache, sha):
+def check_backport(cache, sha, verbose):
     try:
         f = open("%s/%s/%s" % (cache, sha[0], sha))
-        print("%s" % f.read())
+        if verbose:
+            print("%s" % f.read())
         f.close()
         return 0
     except:
         return 1
+
+def quilt_prune(cache):
+    f = open("patches/series")
+    patches = f.readlines()
+    f.close()
+    changed = False
+    output = []
+    for p in patches:
+        if len(p) < 2:
+            continue
+        if p[0] == '#':
+            continue
+        commit = p.split('.')[0]
+        if check_backport(cache, commit, False) == 1:
+            output.append("%s.patch" % commit)
+        else:
+            changed = True
+
+    if changed:
+        f = open("patches/series", "w")
+        f.write('\n'.join(output))
+        f.close()
+
+    return 0
 
 def main(argv):
     config = configparser.ConfigParser()
@@ -164,6 +189,7 @@ def main(argv):
     parser.add_option("-u", "--update", dest="do_update", help="Update cache for the given tree", action="store_true", default=False)
     parser.add_option("-c", "--check", dest="do_check", help="Check if a commit was backported in the current project", default=None, metavar="sha")
     parser.add_option("-r", "--repo", dest="repo", help="Specify which repo to use instead of default", default=None)
+    parser.add_option("-q", "--quilt-prune", dest="quilt", help="Remove commits from the quilt series that are already backported", action="store_true", default=False)
     (options, args) = parser.parse_args()
 
     if options.repo is None:
@@ -183,10 +209,13 @@ def main(argv):
         return 1
 
     if options.do_check is not None:
-        return check_backport(cache, options.do_check)
+        return check_backport(cache, options.do_check, True)
 
     if options.do_update:
         return update_backport_cache(repo, cache, branch, upstream)
+
+    if options.quilt:
+        return quilt_prune(cache)
 
     parser.print_help()
 
