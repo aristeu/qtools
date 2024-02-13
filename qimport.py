@@ -187,10 +187,10 @@ def main(argv):
             if 'repository' not in config:
                 sys.stderr.write("Repository section not found in the config file\n")
                 return 1
-            if 'default' not in config['repository']:
-                sys.stderr.write("No 'default' in repository section\n")
+            if 'upstream' not in config['repository']:
+                sys.stderr.write("No 'upstream' in repository section\n")
                 return 1
-            default_repo = "repo-%s" % config['repository']['default'];
+            default_repo = "repo-%s" % config['repository']['upstream'];
             if default_repo not in config:
                 sys.stderr.write("No default repository %s section exists\n" % default_repo)
                 return 1
