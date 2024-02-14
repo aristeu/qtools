@@ -229,6 +229,9 @@ def main(argv):
     for commit_sha in commit_sha_list:
         try:
             commit = repo.commit(commit_sha)
+            if len(commit.parents) > 1:
+                sys.stderr.write("Ignoring merge commit %s\n" % commit_sha)
+                continue
             commit_list.append(commit)
         except Exception as ex:
             sys.stderr.write("Unable to find commit %s in repository %s\n" % (commit_sha, path))
