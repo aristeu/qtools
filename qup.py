@@ -209,7 +209,16 @@ def main(argv):
         return 1
 
     if options.do_check is not None:
-        return check_backport(cache, options.do_check, True)
+        sha = options.do_check
+        if len(sha) < 40:
+            # expand a shortened sha
+            try:
+                repo2 = git.Repo(upstream)
+                c = repo2.commit(sha)
+                sha = c.hexsha
+            except:
+                raise Exception("Unable to find commit %s upstream" % sha)
+        return check_backport(cache, sha, True)
 
     if options.do_update:
         return update_backport_cache(repo, cache, branch, upstream)
