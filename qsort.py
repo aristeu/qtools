@@ -72,11 +72,11 @@ def main(argv):
     series = series_file.readlines()
     series_newline = []
     for i,l in enumerate(series):
-        if l.startswith('#'):
+        if l.startswith('#') or '.patch' not in l:
             continue
         series[i] = l.replace('\n', '')
         series_newline.append(l)
-        series_hash.append(l.replace('.patch\n',''))
+        series_hash.append(l.replace('.patch\n','').replace('.patch', ''))
 
     for c in repo.iter_commits(branch):
         if c.hexsha in series_hash:
