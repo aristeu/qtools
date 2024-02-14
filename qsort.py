@@ -40,16 +40,16 @@ def main(argv):
                 sys.stderr.write("Repository section not found in the config file\n")
                 return 1
             if 'default' not in config['repository']:
-                sys.stderr.write("No 'default' in repository section\n")
+                sys.stderr.write("No 'upstream' in repository section\n")
                 return 1
-            default_repo = "repo-%s" % config['repository']['default'];
-            if default_repo not in config:
-                sys.stderr.write("No default repository %s section exists\n" % default_repo)
+            upstream_repo = "repo-%s" % config['repository']['upstream'];
+            if upstream_repo not in config:
+                sys.stderr.write("No upstream repository %s section exists\n" % upstream_repo)
                 return 1
-            if 'path' not in config[default_repo]:
+            if 'path' not in config[upstream_repo]:
                 sys.stderr.write("Repository section in the config file doesn't contain path=\n")
                 return 1
-            path = config[default_repo]['path']
+            path = config[upstream_repo]['path']
         except:
             sys.stderr.write("Unable to read the config file, which is mandatory for now\n")
             return 1
