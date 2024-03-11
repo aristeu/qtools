@@ -1,8 +1,8 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
 
 import sys
 import string
-import sha
+import hashlib
 import re
 
 _hunk_re = re.compile('^\@\@ -\d+(?:,(\d+))? \+\d+(?:,(\d+))? \@\@')
@@ -104,7 +104,7 @@ def parse_patch(text):
                         return 1
                     return int(x)
 
-                lc = map(fn, match.groups())
+                lc = list(map(fn, match.groups()))
 
                 state = 4
                 patchline.append(buf + line)
@@ -185,7 +185,7 @@ def hash_patch(str):
         str = str.strip() + '\n'
 
     prefixes = ['-', '+', ' ']
-    hash = sha.sha()
+    hash = hashlib.sha512()
 
     for line in str.split('\n'):
 
@@ -211,7 +211,7 @@ def hash_patch(str):
                 if not x:
                     return 1
                 return int(x)
-            line_nos = map(fn, hunk_match.groups())
+            line_nos = list(map(fn, hunk_match.groups()))
             line = '@@ -%d +%d @@' % tuple(line_nos)
 
         elif line[0] in prefixes:
@@ -223,7 +223,7 @@ def hash_patch(str):
             continue
 
 #        hash.update(line.encode('utf-8') + '\n')
-        hash.update(line + '\n')
+        hash.update((line + '\n').encode('utf-8'))
 
     return hash.hexdigest()
 
