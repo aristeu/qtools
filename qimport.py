@@ -17,7 +17,7 @@ def write_single_patch(path, series, commit):
     patch = "%s.patch" % commit
     f = open("patches/%s" % patch, "w")
     # ugh. Couldn't make commit.diff work the same way
-    formatted_patch = subprocess.check_output(["git", "-C", path, "log", "-p", "-1", commit.hexsha])
+    formatted_patch = subprocess.check_output(["git", "-C", path, "log", "--cc", "-p", "-1", commit.hexsha])
     # ffs
     try:
         f.write(formatted_patch.decode('utf-8'))
@@ -229,9 +229,14 @@ def main(argv):
     for commit_sha in commit_sha_list:
         try:
             commit = repo.commit(commit_sha)
-            if len(commit.parents) > 1:
-                sys.stderr.write("Ignoring merge commit %s\n" % commit_sha)
-                continue
+            if len(commit.parents) == 2:
+                empty = True
+                for p in commit.parents:
+                    if commit.diff(p):
+                        empty = False
+                if empty:
+                    sys.stderr.write("Ignoring empty merge commit %s\n" % commit_sha)
+                    continue
             commit_list.append(commit)
         except Exception as ex:
             sys.stderr.write("Unable to find commit %s in repository %s\n" % (commit_sha, path))
