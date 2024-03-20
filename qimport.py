@@ -17,7 +17,7 @@ def write_single_patch(path, series, commit):
     patch = "%s.patch" % commit
     f = open("patches/%s" % patch, "w")
     # ugh. Couldn't make commit.diff work the same way
-    formatted_patch = subprocess.check_output(["git", "-C", path, "log", "--cc", "-p", "-1", commit.hexsha])
+    formatted_patch = subprocess.check_output(["git", "-C", path, "log", "--cc", "-1", commit.hexsha])
     # ffs
     try:
         f.write(formatted_patch.decode('utf-8'))
