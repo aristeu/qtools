@@ -22,7 +22,25 @@ while [ 1 ]; do
 	total=$(quilt series | wc -l);
 
 	if [ $applied -gt 0 ]; then
-		quilt header | sed -e "s/^/\t/";
+		columns=$(stty size < /dev/tty | cut -f 2 -d ' ') ;
+		if [ $columns -gt 180 ]; then
+			a=$(mktemp);
+			b=$(mktemp);
+			c=$(mktemp);
+			# keep recalculating this in the loop in case terminal changes
+			l=$(stty size < /dev/tty | cut -f 1 -d ' ');
+			lines=$(($l - 15));
+			quilt header | sed -e "s/^/\t/" >$c;
+			total=$(wc -l $c | cut -f 1 -d ' ');
+			head -n $lines $c >$a;
+			if [ $total -gt $lines ]; then
+				tail -n $((total - $lines)) $c >$b;
+			fi
+			pr -W $columns -l $lines -m -T $a $b
+			rm -f $a $b $c;
+		else
+			quilt header | sed -e "s/^/\t/";
+		fi
 		quilt top;
 		quilt diff | diffstat -p 1 -l;
 	elif [ -f patches/mr ]; then
