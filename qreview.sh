@@ -31,10 +31,10 @@ while [ 1 ]; do
 			l=$(stty size < /dev/tty | cut -f 1 -d ' ');
 			lines=$(($l - 15));
 			quilt header | sed -e "s/^/\t/" >$c;
-			total=$(wc -l $c | cut -f 1 -d ' ');
+			t=$(wc -l $c | cut -f 1 -d ' ');
 			head -n $lines $c >$a;
-			if [ $total -gt $lines ]; then
-				tail -n $((total - $lines)) $c >$b;
+			if [ $t -gt $lines ]; then
+				tail -n $((t - $lines)) $c >$b;
 			fi
 			pr -W $columns -l $lines -m -T $a $b
 			rm -f $a $b $c;
